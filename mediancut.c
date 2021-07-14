@@ -195,6 +195,7 @@ static double prepare_sort(struct box *b, hist_item achv[])
 
     const unsigned int ind1 = b->ind;
     const unsigned int colors = b->colors;
+    int i;
 #if __GNUC__ >= 9 || __clang__
     #pragma omp parallel for if (colors > 25000) \
         schedule(static) default(none) shared(achv, channels, colors, ind1)
@@ -202,7 +203,7 @@ static double prepare_sort(struct box *b, hist_item achv[])
     #pragma omp parallel for if (colors > 25000) \
         schedule(static) default(none) shared(achv, channels)
 #endif
-    for(unsigned int i=0; i < colors; i++) {
+    for(i=0; i < colors; i++) {
         const float *chans = (const float *)&achv[ind1 + i].acolor;
         // Only the first channel really matters. When trying median cut many times
         // with different histogram weights, I don't want sort randomness to influence outcome.
@@ -215,9 +216,12 @@ static double prepare_sort(struct box *b, hist_item achv[])
     // box will be split to make color_weight of each side even
     const unsigned int ind = b->ind, end = ind+b->colors;
     double totalvar = 0;
+    signed int j;
     #pragma omp parallel for if (end - ind > 15000) \
         schedule(static) default(shared) reduction(+:totalvar)
-    for(unsigned int j=ind; j < end; j++) totalvar += (achv[j].color_weight = color_weight(median, achv[j]));
+    for (j = ind; j < end; j++) {
+      totalvar += (achv[j].color_weight = color_weight(median, achv[j]));
+    }
     return totalvar / 2.0;
 }
 
@@ -437,10 +441,10 @@ static void adjust_histogram(hist_item *achv, const struct box* bv, unsigned int
 static f_pixel averagepixels(unsigned int clrs, const hist_item achv[])
 {
     double r = 0, g = 0, b = 0, a = 0, sum = 0;
-
+    int i;
     #pragma omp parallel for if (clrs > 25000) \
         schedule(static) default(shared) reduction(+:a) reduction(+:r) reduction(+:g) reduction(+:b) reduction(+:sum)
-    for(unsigned int i = 0; i < clrs; i++) {
+    for(i = 0; i < clrs; i++) {
         const f_pixel px = achv[i].acolor;
         const double weight = achv[i].adjusted_weight;
 
